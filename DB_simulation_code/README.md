@@ -15,6 +15,8 @@ pm = wrapPayoff(uff, ufn, unf, unn);
 
 Here `pm` is the packed payoff matrix.
 
+
+
 ### 人工网络结构的产生
 
 Up to now, we provide three types of synthetic network generation code. The corresponding three graph structures are *random regular network*, *ER random network* and *BA scale free network*.
@@ -31,6 +33,20 @@ Up to now, we provide three types of synthetic network generation code. The corr
 
 - ER random network
 
+  ...
+
 - BA scale free network
 
-DBsim.m: simulation code for pure DB update rule over homogeneous networks. The details can be founded in this code.
+For the convenience of using in the following simulation code, we can transform the graph from **adjacency matrix** form into **adjacency list** form with `graph_change`. e.g.:
+
+```
+g = graph_change(full(createRandRegGraph(1000, 10)))
+```
+
+
+
+### simulation code
+
+Simulation code in different scenarios are provided
+
+- DBsim.m: simulation code for pure DB update rule over homogeneous networks. The details can be founded in this code.
