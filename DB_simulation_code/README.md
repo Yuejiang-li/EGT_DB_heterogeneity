@@ -37,6 +37,8 @@ Up to now, we provide three types of synthetic network generation code. The corr
 
 - BA scale free network
 
+  ...
+
 For the convenience of using in the following simulation code, we can transform the graph from **adjacency matrix** form into **adjacency list** form with `graph_change`. e.g.:
 
 ```
@@ -45,8 +47,19 @@ g = graph_change(full(createRandRegGraph(1000, 10)))
 
 
 
-### simulation code
+### Simulation Code
 
 Simulation code in different scenarios are provided
 
 - DBsim.m: simulation code for pure DB update rule over homogeneous networks. The details can be founded in this code.
+- DB_2pm_interact_owntype: simulation code for the scenario, where only 2 types of users with different payoff matrix exist. Each user only imitate his/her same-type neighbor's strategy.
+
+### Simulation Control Script Code
+
+Usually, the simulation need to be repeated several times under the same settings (which is often called *Monte-Carlo* method). Then, the mean-field results are drown through averaging the simulation results. 
+
+Here, we provide simulation control script code to repeat the corresponding simulation with the same settings, and obtain the mean result.
+
+- DBsim_CtrlScrpt.m: control script for `DBsim.m`
+- DB_2pm_interact_owntype_ctrlScrpt: control script for `DB_2pm_interact_owntype.m`
+
