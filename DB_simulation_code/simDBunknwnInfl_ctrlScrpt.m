@@ -1,9 +1,9 @@
-function mean_result = DB_2pm_interact_owntype_ctrlScrpt(pm1, pm2, r, N, k, alpha, iter, p_ini, b, g_type, varargin)
-% repeated simulation control script for "DB_2pm_interact_owntype.m"
+function mean_result = simDBunknwnInfl_ctrlScrpt(pm1, pm2, r, N, k, alpha, iteration_time, p_ini, b, g_type, varargin)
 
     tic
     rand_graph_num = 5;
-    sim_run_num = 96;
+    sim_run_num = 144;
+%     result_all = zeros(sim_run_num, iteration_time, rand_graph_num, 'single');  % 3-d matrices to record every simulation results
     graph_all = zeros(N, N, rand_graph_num, 'single');
     result_all = cell(1, rand_graph_num);
     switch g_type  % choose graph type
@@ -25,13 +25,13 @@ function mean_result = DB_2pm_interact_owntype_ctrlScrpt(pm1, pm2, r, N, k, alph
             end
     end
     
-    temp2 = zeros(2, iter);
+    temp2 = zeros(4, iteration_time);
     for i = 1:rand_graph_num
-        fprintf('Current running the graph %d / %d\n', i, rand_graph_num);
+        i
         graph = graph_all(:, :, i);
         graph_result = cell(1, sim_run_num);
         parfor j = 1: sim_run_num
-            graph_result{1, j} = DB_2pm_interact_owntype(pm1, pm2, r, graph, alpha, iter, N, p_ini, b);
+            graph_result{1, j} = simDBunknwnInfl(pm1, pm2, r, graph, alpha, iteration_time, N, p_ini, b);
         end
         temp = graph_result{1, 1};
         for j = 2:sim_run_num
@@ -42,5 +42,7 @@ function mean_result = DB_2pm_interact_owntype_ctrlScrpt(pm1, pm2, r, N, k, alph
     end
     
     mean_result = temp2/rand_graph_num;
+%     mean_graph_result = mean(result_all, 3);  % Expectation calculation w.r.t graph
+%     mean_result = mean(mean_graph_result);  % Expectation calcaulation w.r.t simulation run
     toc
 end
