@@ -10,12 +10,14 @@
 
 """
 
+import time
 import numpy as np
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from functools import partial
 import multiprocessing
+import matplotlib.pyplot as plt
 
 
 def simDBWithControl(payoff, adj_list, str_init, con_nodes,
@@ -104,7 +106,7 @@ def repeatSimu(payoff, adj_list, str_init, con_nodes,
     else:
         alpha_list = [alpha for _ in range(repeat_num)]
         parfunc = partial(simDBWithControl, payoff, adj_list, str_init, con_nodes, num_iter)
-        pool = multiprocessing.Pool(4)
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
         res = pool.map(parfunc, alpha_list)
         pool.close()
         pool.join()
@@ -114,7 +116,38 @@ def repeatSimu(payoff, adj_list, str_init, con_nodes,
     return mean_res
 
 
+def selectNodes(payoff, adj_list, str_init, num_con_nodes,
+    num_iter, alpha, repeat_num, method, pool=None):
+    N = len(adj_list)
+    if method == "random":
+        con_nodes = np.random.permutation(N)[:num_con_nodes]
+    elif method == 'degree':
+        degs = np.zeros(N)
+        for node_id, neighbors in adj_list.items():
+            degs[node_id] = len(neighbors)
+        con_nodes = np.argpartition(degs, -num_con_nodes)[-num_con_nodes:]
+    elif method == 'greedy':
+        con_nodes = []
+        for k in range(num_con_nodes):
+            for i in range(N):
+                max_ess = -0.1
+                max_index = None
+                if i not in con_nodes:
+                    cur_con_nodes = con_nodes + [i]
+                    mean_res = repeatSimu(payoff, adj_list, str_init, cur_con_nodes, num_iter, alpha, repeat_num, pool=pool)
+                    mean_ess = np.mean(mean_res[-100:])
+                    if mean_ess > max_ess:
+                        max_index = i
+                        max_ess = mean_ess
+            con_nodes.append(max_index)
+            print("Find {} nodes.".format(k))
+    else:
+        raise ValueError("No such method: {}".format(method))
+    
+    return con_nodes
+
 if __name__ == "__main__":
+    # ----- 仿真参数设置 -----
     payoff = 0.6, 0.8, 0.8, 0.4
     G = nx.gnp_random_graph(100, 0.2)
     adj_mat = nx.to_numpy_array(G)
@@ -123,8 +156,74 @@ if __name__ == "__main__":
         adj_list[i] = (np.where(adj_mat[i] == 1))[0]
 
     str_init = np.random.binomial(1, 0.5, (100,))
-    con_nodes = []
+    num_con_nodes = 5
     num_iters = 3000
     alpha = 0.99
+    simu_repeat_num = 10
+    # ----- 仿真参数设置. -----
 
-    mean_res = repeatSimu(payoff, adj_list, str_init, con_nodes, num_iters, alpha, 50)
+    # start_time = time.time()
+    # mean_res = repeatSimu(payoff, adj_list, str_init, con_nodes, num_iters, alpha, 50, pool=True)
+    # end_time = time.time()
+    # print("Time consumes: {}".format(end_time - start_time))
+
+    # ----- 不同控制策略 -----
+    # no control
+    start_time = time.time()
+    mean_res_noctrl = repeatSimu(payoff, adj_list, str_init, [], num_iters, alpha, simu_repeat_num, pool=True)
+    end_time = time.time()
+    print("Simulation without control finish. Time consumes: {:.2f}s".format(
+        end_time - start_time
+    ))
+
+    start_time = time.time()
+    con_nodes_random = selectNodes(payoff, adj_list, str_init, num_con_nodes, num_iters, alpha, simu_repeat_num, "random")
+    mean_res_random = repeatSimu(payoff, adj_list, str_init, con_nodes_random, num_iters, alpha, simu_repeat_num, pool=True)
+    end_time = time.time()
+    print("Simulation with random control finish. Time consumes: {:.2f}s".format(
+        end_time - start_time
+    ))
+
+    start_time = time.time()
+    con_nodes_degree = selectNodes(payoff, adj_list, str_init, num_con_nodes, num_iters, alpha, simu_repeat_num, "degree")
+    mean_res_degree = repeatSimu(payoff, adj_list, str_init, con_nodes_degree, num_iters, alpha, simu_repeat_num, pool=True)
+    end_time = time.time()
+    print("Simulation with random control finish. Time consumes: {:.2f}s".format(
+        end_time - start_time
+    ))
+
+    start_time = time.time()
+    con_nodes_greedy = selectNodes(payoff, adj_list, str_init, num_con_nodes, num_iters, alpha, simu_repeat_num, 'greedy', pool=True)
+    mean_res_greedy = repeatSimu(payoff, adj_list, str_init, con_nodes_greedy, num_iters, alpha, simu_repeat_num, pool=True)
+    end_time = time.time()
+    print("Simulation with random control finish. Time consumes: {:.2f}s".format(
+        end_time - start_time
+    ))
+    # ----- 不同控制策略. -----
+
+    # ----- 保存结果 -----
+    np.savez_compressed(
+        "simu_res",
+        payoff=payoff,
+        adj_list=adj_list,
+        str_init=str_init,
+        num_con_nodes=num_con_nodes,
+        num_iters=num_iters,
+        alpha=alpha,
+        simu_repeat_num=simu_repeat_num,
+        mean_res_noctrl=mean_res_noctrl,
+        con_nodes_random=con_nodes_random,
+        mean_res_random=mean_res_random,
+        con_nodes_degree=con_nodes_degree,
+        mean_res_degree=mean_res_degree,
+        con_nodes_greedy=con_nodes_greedy,
+        mean_res_greedy=mean_res_greedy
+    )
+    plt.plot(mean_res_noctrl)
+    plt.plot(mean_res_random)
+    plt.plot(mean_res_degree)
+    plt.plot(mean_res_greedy)
+    plt.xlabel("Time step")
+    plt.ylabel("%(Stragey A)")
+    plt.legend(["no-control", 'random', 'degree', 'greedy'])
+    # ----- 保存结果. -----
