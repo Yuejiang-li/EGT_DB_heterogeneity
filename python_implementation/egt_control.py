@@ -41,6 +41,7 @@ def simDBWithControl(payoff, adj_list, str_init, con_nodes,
     N = len(adj_list)
     fitness_list = (1 - alpha) * np.ones(N)   # 基准健康值baseline fitness = 1.0
     action_list = np.copy(str_init)
+    action_list[con_nodes] = 0
 
     # 初始计算所有用户的fitness值
     for i in range(N):
@@ -129,18 +130,22 @@ def selectNodes(payoff, adj_list, str_init, num_con_nodes,
     elif method == 'greedy':
         con_nodes = []
         for k in range(num_con_nodes):
+            min_ess = 1.0
+            min_index = None
+            min_records = None
             for i in range(N):
-                max_ess = -0.1
-                max_index = None
                 if i not in con_nodes:
                     cur_con_nodes = con_nodes + [i]
                     mean_res = repeatSimu(payoff, adj_list, str_init, cur_con_nodes, num_iter, alpha, repeat_num, pool=pool)
-                    mean_ess = np.mean(mean_res[-100:])
-                    if mean_ess > max_ess:
-                        max_index = i
-                        max_ess = mean_ess
-            con_nodes.append(max_index)
+                    mean_ess = np.mean(mean_res[-5000:])
+                    if mean_ess < min_ess:
+                        min_index = i
+                        min_ess = mean_ess
+                        min_records = mean_res
+                    # print("current ess = {}, min ess = {}, min_index = {}".format(mean_ess, min_ess, min_index))
+            con_nodes.append(min_index)
             print("Find {} nodes.".format(k))
+        return con_nodes, min_records
     else:
         raise ValueError("No such method: {}".format(method))
     
@@ -149,17 +154,18 @@ def selectNodes(payoff, adj_list, str_init, num_con_nodes,
 if __name__ == "__main__":
     # ----- 仿真参数设置 -----
     payoff = 0.6, 0.8, 0.8, 0.4
-    G = nx.gnp_random_graph(100, 0.2)
+    N = 100
+    G = nx.gnp_random_graph(N, 0.2)
     adj_mat = nx.to_numpy_array(G)
     adj_list = dict()
     for i in range(adj_mat.shape[0]):
         adj_list[i] = (np.where(adj_mat[i] == 1))[0]
 
-    str_init = np.random.binomial(1, 0.5, (100,))
-    num_con_nodes = 5
-    num_iters = 3000
-    alpha = 0.99
-    simu_repeat_num = 10
+    str_init = np.random.binomial(1, 0.5, (N,))
+    num_con_nodes = 10
+    num_iters = 6000
+    alpha = 0.9
+    simu_repeat_num = 2000
     # ----- 仿真参数设置. -----
 
     # start_time = time.time()
@@ -193,8 +199,8 @@ if __name__ == "__main__":
     ))
 
     start_time = time.time()
-    con_nodes_greedy = selectNodes(payoff, adj_list, str_init, num_con_nodes, num_iters, alpha, simu_repeat_num, 'greedy', pool=True)
-    mean_res_greedy = repeatSimu(payoff, adj_list, str_init, con_nodes_greedy, num_iters, alpha, simu_repeat_num, pool=True)
+    con_nodes_greedy, mean_res_greedy = selectNodes(payoff, adj_list, str_init, num_con_nodes, num_iters, alpha, simu_repeat_num // 2, 'greedy', pool=True)
+    # mean_res_greedy = repeatSimu(payoff, adj_list, str_init, con_nodes_greedy, num_iters, alpha, simu_repeat_num, pool=True)
     end_time = time.time()
     print("Simulation with random control finish. Time consumes: {:.2f}s".format(
         end_time - start_time
@@ -226,4 +232,5 @@ if __name__ == "__main__":
     plt.xlabel("Time step")
     plt.ylabel("%(Stragey A)")
     plt.legend(["no-control", 'random', 'degree', 'greedy'])
+    plt.savefig("results.jpg", dpi=500)
     # ----- 保存结果. -----
